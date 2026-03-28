@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Risk Assessment | Jason Vestal</title>
+<meta name="description" content="Psychometric risk profiling and portfolio optimization by Jason Vestal.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #0a1628;
+    --navy-mid: #0f1d33;
+    --gold: #b8973a;
+    --gold-light: #d4af52;
+    --slate: #8899b0;
+    --slate-light: #a3b3c8;
+    --white: #f0f2f5;
+    --font-display: 'Cormorant Garamond', Georgia, serif;
+    --font-body: 'Outfit', sans-serif;
+  }
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: var(--font-body);
+    background: var(--navy);
+    color: var(--white);
+    -webkit-font-smoothing: antialiased;
+  }
+  #root { min-height: 100vh; }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useMemo, useRef } = React;
+
+const QUESTIONS = [
+  { section: "Risk Tolerance", q: "In general, how would your best friend describe you as a risk taker?", opts: ["A real gambler", "Willing to take risks after adequate research", "Cautious", "A real risk avoider"], scores: [4, 3, 2, 1] },
+  { section: "Risk Tolerance", q: "You are on a TV game show and can choose one of the following. Which do you pick?", opts: ["$1,000 in cash", "A 50% chance at $5,000", "A 25% chance at $10,000", "A 5% chance at $100,000"], scores: [1, 2, 3, 4] },
+  { section: "Risk Tolerance", q: "You just finished saving for a dream vacation. Three weeks before departure, you lose your job. You would:", opts: ["Cancel the vacation", "Take a much more modest vacation", "Go as planned \u2014 you need time to regroup", "Extend it \u2014 could be your last chance for a while"], scores: [1, 2, 3, 4] },
+  { section: "Risk Tolerance", q: "If you unexpectedly received $20,000 to invest, what would you do?", opts: ["Deposit it in a bank account", "Invest in high-quality bonds", "Invest in equities", "Invest in something speculative"], scores: [1, 2, 3, 4] },
+  { section: "Risk Tolerance", q: "When you think of the word \u2018risk\u2019 in a financial context, which word comes to mind first?", opts: ["Loss", "Uncertainty", "Opportunity", "Thrill"], scores: [1, 2, 3, 4] },
+  { section: "Risk Tolerance", q: "Experts predict asset prices could drop 25% over the next year. Others disagree. If you held $100,000 in a diversified portfolio, you would:", opts: ["Sell everything", "Sell half", "Hold everything", "Buy more"], scores: [1, 2, 3, 4] },
+  { section: "Risk Tolerance", q: "Given the best and worst case returns of four choices, which do you prefer?", opts: ["$200 gain best / $0 worst", "$800 gain best / $200 loss worst", "$2,600 gain best / $800 loss worst", "$4,800 gain best / $2,400 loss worst"], scores: [1, 2, 3, 4] },
+  { section: "Risk Tolerance", q: "How would you feel if your portfolio lost 15% of its value in a single month?", opts: ["Very upset \u2014 I would sell immediately", "Concerned \u2014 I would consider selling some", "Uneasy but patient \u2014 I would wait", "Fine \u2014 this is normal market behavior"], scores: [1, 2, 3, 4] },
+  { section: "Risk Tolerance", q: "How much portfolio decline can you tolerate over a full year?", opts: ["Any decline is unacceptable", "Up to 10%", "Up to 20%", "Up to 30% or more"], scores: [1, 2, 3, 4] },
+  { section: "Risk Tolerance", q: "A friend\u2019s business has a 50/50 chance of doubling your investment or losing everything. You would invest:", opts: ["Nothing", "One month\u2019s salary", "Three months\u2019 salary", "Six months\u2019 salary"], scores: [1, 2, 3, 4] },
+  { section: "Risk Tolerance", q: "How comfortable are you with the possibility of losing money on investments?", opts: ["Very uncomfortable", "Somewhat uncomfortable", "Somewhat comfortable", "Very comfortable"], scores: [1, 2, 3, 4] },
+  { section: "Risk Tolerance", q: "Your portfolio lost 25% over 6 months. History shows recovery within 2\u20133 years. You would:", opts: ["Sell everything and move to cash", "Sell half and wait", "Hold steady", "Invest more while prices are down"], scores: [1, 2, 3, 4] },
+  { section: "Risk Tolerance", q: "How do you feel about borrowing money to invest?", opts: ["Would never consider it", "Might consider it for a sure thing", "Would consider it for a good opportunity", "Have done it or would do it readily"], scores: [1, 2, 3, 4] },
+  { section: "Risk Tolerance", q: "What degree of risk have you taken with your financial decisions in the past?", opts: ["Very small", "Small", "Medium", "Large"], scores: [1, 2, 3, 4] },
+  { section: "Risk Tolerance", q: "How important is it to avoid ANY chance of losing principal?", opts: ["Critical \u2014 principal must be safe", "Important \u2014 but small risk is acceptable", "Not very important \u2014 growth matters more", "Not important \u2014 maximum growth is the goal"], scores: [1, 2, 3, 4] },
+  { section: "Risk Capacity", q: "How many months of living expenses do you have in emergency savings?", opts: ["Less than 1 month", "1\u20133 months", "3\u20136 months", "More than 6 months"], scores: [1, 2, 3, 4] },
+  { section: "Risk Capacity", q: "How stable and predictable is your current income?", opts: ["Very unstable", "Somewhat unstable", "Fairly stable", "Very stable"], scores: [1, 2, 3, 4] },
+  { section: "Risk Capacity", q: "When will you need to begin withdrawing from this portfolio?", opts: ["Within 2 years", "2\u20135 years", "5\u201310 years", "More than 10 years"], scores: [1, 2, 3, 4] },
+  { section: "Risk Capacity", q: "What percentage of your total net worth would this portfolio represent?", opts: ["More than 75%", "50\u201375%", "25\u201350%", "Less than 25%"], scores: [1, 2, 3, 4] },
+  { section: "Risk Capacity", q: "Do you have other sources of retirement income beyond this portfolio?", opts: ["No other sources", "Minor sources", "Moderate sources", "Substantial sources"], scores: [1, 2, 3, 4] },
+  { section: "Risk Required", q: "What is your primary investment objective?", opts: ["Preserve capital", "Generate income with modest growth", "Grow wealth steadily", "Maximize long-term growth"], scores: [1, 2, 3, 4] },
+  { section: "Risk Required", q: "What annual return do you need to achieve your financial goals?", opts: ["2\u20134% (inflation protection)", "4\u20136%", "6\u20138%", "8%+ (aggressive growth)"], scores: [1, 2, 3, 4] },
+  { section: "Risk Required", q: "At your current savings and contribution rate, are you on track to meet your goals?", opts: ["Well ahead of schedule", "On track", "Slightly behind", "Significantly behind"], scores: [1, 2, 3, 4] },
+  { section: "Risk Required", q: "How willing are you to adjust goals if your portfolio underperforms?", opts: ["Very willing \u2014 goals are flexible", "Somewhat willing", "Slightly willing", "Not willing \u2014 goals are fixed"], scores: [4, 3, 2, 1] },
+  { section: "Risk Required", q: "How much additional savings can you contribute if the portfolio falls short?", opts: ["Significant additional savings possible", "Some additional savings possible", "Very little possible", "None possible"], scores: [4, 3, 2, 1] },
+];
+
+const ASSET_CLASSES = [
+  { name: "U.S. Large Cap Equity", index: "S&P 500 / CRSP US Total Market", cat: "equity" },
+  { name: "U.S. Small Cap Value", index: "Russell 2000 Value", cat: "equity" },
+  { name: "U.S. Momentum Factor", index: "MSCI USA Momentum", cat: "equity" },
+  { name: "U.S. Quality Factor", index: "MSCI USA Quality", cat: "equity" },
+  { name: "U.S. Sector Segments", index: "S&P 500 GICS Sectors (11)", cat: "equity" },
+  { name: "International Developed", index: "MSCI EAFE", cat: "equity" },
+  { name: "Intl Small Cap Value", index: "MSCI EAFE Small Cap Value", cat: "equity" },
+  { name: "Emerging Markets", index: "MSCI Emerging Markets", cat: "equity" },
+  { name: "EM Value / Small Cap", index: "MSCI EM Value / S&P EM SmallCap", cat: "equity" },
+  { name: "U.S. Aggregate Bond", index: "Bloomberg U.S. Aggregate", cat: "bond" },
+  { name: "Short-Term Treasury", index: "ICE U.S. Treasury 1\u20133 Year", cat: "bond" },
+  { name: "Inflation-Protected", index: "Bloomberg U.S. TIPS", cat: "bond" },
+  { name: "International Bond", index: "Bloomberg Global Agg ex-USD (Hedged)", cat: "bond" },
+  { name: "Gold / Precious Metals", index: "LBMA Gold Price", cat: "alt" },
+  { name: "Global Real Estate", index: "FTSE EPRA Nareit Global", cat: "alt" },
+  { name: "Broad Commodities", index: "Bloomberg Commodity", cat: "alt" },
+];
+
+const MODELS = {
+  20: [5,1,0,0,2,3,0,1,0,40,20,12,8,4,2,2],
+  30: [8,2,1,1,3,5,1,2,0,35,15,12,8,4,2,1],
+  40: [14,4,3,2,5,8,2,3,1,28,10,8,5,4,2,1],
+  50: [20,5,4,3,7,10,3,4,1,20,7,6,3,4,2,1],
+  60: [24,6,5,4,9,12,4,5,2,12,4,4,2,4,2,1],
+  70: [28,7,6,5,11,14,5,6,2,4,2,2,1,4,2,1],
+  80: [30,8,7,5,14,13,5,7,3,0,0,1,0,4,2,1],
+  90: [32,9,7,5,16,12,4,7,3,0,0,0,0,3,1,1],
+};
+
+function interpolateWeights(score) {
+  const keys = Object.keys(MODELS).map(Number).sort((a,b)=>a-b);
+  if (score <= keys[0]) return MODELS[keys[0]];
+  if (score >= keys[keys.length-1]) return MODELS[keys[keys.length-1]];
+  let lo=keys[0],hi=keys[keys.length-1];
+  for (let i=0;i<keys.length-1;i++){if(score>=keys[i]&&score<=keys[i+1]){lo=keys[i];hi=keys[i+1];break;}}
+  const t=(score-lo)/(hi-lo);
+  return MODELS[lo].map((v,i)=>Math.round(v+t*(MODELS[hi][i]-v)));
+}
+function scoreToSigma(s){return 3.0+0.15*s+0.0003*s*s;}
+function scoreToReturn(s){return 2.5+scoreToSigma(s)*0.42;}
+function scoreToDrawdown(s){return -(scoreToSigma(s)*2.75);}
+function profileLabel(s){
+  if(s<=20)return"Capital Preservation";if(s<=30)return"Very Conservative";if(s<=40)return"Conservative";
+  if(s<=50)return"Moderate Conservative";if(s<=60)return"Moderate";if(s<=70)return"Moderate Growth";
+  if(s<=80)return"Growth";if(s<=90)return"Aggressive Growth";return"Maximum Growth";
+}
+function generateFrontier(){const pts=[];for(let sig=2;sig<=24;sig+=0.5){pts.push({sigma:sig,ret:2.5+sig*0.42+Math.sin(sig*0.3)*0.3});}return pts;}
+
+// ─── COLORS ─────────────────────────────────────────────────────────
+const C = {
+  navy:"#0a1628",navyMid:"#0f1d33",gold:"#b8973a",goldLight:"#d4af52",
+  slate:"#8899b0",slateLight:"#a3b3c8",white:"#f0f2f5",
+  green:"#4a9e6f",red:"#b04040",amber:"#c08830",
+  border:"rgba(184,151,58,0.12)",borderGold:"rgba(184,151,58,0.3)",
+};
+
+function App(){
+  const [step,setStep]=useState(0);
+  const [answers,setAnswers]=useState({});
+  const [showFrontier,setShowFrontier]=useState(false);
+  const canvasRef=useRef(null);
+  const frontier=useMemo(generateFrontier,[]);
+  const totalQ=QUESTIONS.length;
+
+  const computeScores=()=>{
+    let tol=0,tolMax=0,cap=0,capMax=0,req=0,reqMax=0;
+    QUESTIONS.forEach((q,i)=>{const a=answers[i];if(a===undefined)return;const s=q.scores[a];
+      if(q.section==="Risk Tolerance"){tol+=s;tolMax+=4;}
+      else if(q.section==="Risk Capacity"){cap+=s;capMax+=4;}
+      else{req+=s;reqMax+=4;}
+    });
+    const tolScore=tolMax>0?Math.round((tol/tolMax)*100):50;
+    const capScore=capMax>0?Math.round((cap/capMax)*100):50;
+    const reqScore=reqMax>0?Math.round((req/reqMax)*100):50;
+    return{tolScore,capScore,reqScore,binding:Math.min(tolScore,capScore)};
+  };
+
+  const scores=computeScores();
+  const weights=interpolateWeights(scores.binding);
+  const sigma=scoreToSigma(scores.binding);
+  const expReturn=scoreToReturn(scores.binding);
+  const maxDraw=scoreToDrawdown(scores.binding);
+
+  // Canvas
+  useEffect(()=>{
+    if(step!==totalQ+1||!showFrontier||!canvasRef.current)return;
+    const cvs=canvasRef.current;const dpr=window.devicePixelRatio||1;
+    const displayW=cvs.clientWidth;const displayH=380;
+    cvs.width=displayW*dpr;cvs.height=displayH*dpr;cvs.style.height=displayH+"px";
+    const ctx=cvs.getContext("2d");ctx.scale(dpr,dpr);
+    const W=displayW,H=displayH;const pad={t:44,r:36,b:52,l:64};
+    const gW=W-pad.l-pad.r,gH=H-pad.t-pad.b;
+    ctx.fillStyle="#0d1b2e";ctx.fillRect(0,0,W,H);
+    for(let i=0;i<=5;i++){const y=pad.t+(gH/5)*i;ctx.strokeStyle=i===5?"rgba(184,151,58,0.2)":"rgba(184,151,58,0.06)";ctx.lineWidth=i===5?1:0.5;ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(W-pad.r,y);ctx.stroke();}
+    for(let i=0;i<=5;i++){const x=pad.l+(gW/5)*i;ctx.strokeStyle=i===0?"rgba(184,151,58,0.2)":"rgba(184,151,58,0.06)";ctx.lineWidth=i===0?1:0.5;ctx.beginPath();ctx.moveTo(x,pad.t);ctx.lineTo(x,H-pad.b);ctx.stroke();}
+    ctx.fillStyle=C.slate;ctx.font="500 10px Outfit,sans-serif";ctx.textAlign="center";
+    for(let i=0;i<=5;i++){ctx.fillText((2+i*4.4).toFixed(0)+"%",pad.l+(gW/5)*i,H-pad.b+20);}
+    ctx.textAlign="right";for(let i=0;i<=5;i++){ctx.fillText((2+i*2.4).toFixed(0)+"%",pad.l-10,pad.t+gH-(gH/5)*i+4);}
+    ctx.save();ctx.translate(16,pad.t+gH/2);ctx.rotate(-Math.PI/2);ctx.textAlign="center";ctx.fillStyle=C.slate;ctx.font="600 9px Outfit,sans-serif";ctx.letterSpacing="0.1em";ctx.fillText("EXPECTED RETURN",0,0);ctx.restore();
+    ctx.fillStyle=C.slate;ctx.font="600 9px Outfit,sans-serif";ctx.textAlign="center";ctx.fillText("STANDARD DEVIATION",pad.l+gW/2,H-8);
+    const sx=(v)=>pad.l+((v-2)/22)*gW;const sy=(v)=>pad.t+gH-((v-2)/12)*gH;
+    ctx.fillStyle="rgba(184,151,58,0.03)";ctx.beginPath();frontier.forEach((p,i)=>{i===0?ctx.moveTo(sx(p.sigma),sy(p.ret)):ctx.lineTo(sx(p.sigma),sy(p.ret));});ctx.lineTo(sx(frontier[frontier.length-1].sigma),sy(2));ctx.lineTo(sx(frontier[0].sigma),sy(2));ctx.closePath();ctx.fill();
+    ctx.strokeStyle=C.gold;ctx.lineWidth=2.5;ctx.beginPath();frontier.forEach((p,i)=>{i===0?ctx.moveTo(sx(p.sigma),sy(p.ret)):ctx.lineTo(sx(p.sigma),sy(p.ret));});ctx.stroke();
+    ctx.fillStyle=C.gold;ctx.font="700 9px Outfit,sans-serif";ctx.textAlign="left";ctx.fillText("EFFICIENT FRONTIER",sx(16.5),sy(10.2));
+    const badX=sx(sigma+3.5),badY=sy(expReturn-1.8);ctx.fillStyle="#b04040";ctx.beginPath();ctx.arc(badX,badY,4,0,Math.PI*2);ctx.fill();ctx.fillStyle="rgba(176,64,64,0.7)";ctx.font="600 9px Outfit,sans-serif";ctx.fillText("TYPICAL PORTFOLIO",badX+10,badY+3);
+    ctx.strokeStyle="rgba(184,151,58,0.15)";ctx.lineWidth=1;ctx.setLineDash([3,3]);ctx.beginPath();ctx.moveTo(badX-5,badY-3);ctx.lineTo(sx(sigma)+7,sy(expReturn)+5);ctx.stroke();ctx.setLineDash([]);
+    const cx=sx(sigma),cy=sy(expReturn);ctx.strokeStyle=C.green;ctx.lineWidth=2;ctx.beginPath();ctx.arc(cx,cy,10,0,Math.PI*2);ctx.stroke();ctx.fillStyle=C.green;ctx.beginPath();ctx.arc(cx,cy,4,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle=C.green;ctx.font="700 10px Outfit,sans-serif";ctx.textAlign="left";ctx.fillText("YOUR PORTFOLIO",cx+16,cy-6);ctx.font="500 9px Outfit,sans-serif";ctx.fillStyle="rgba(74,158,111,0.7)";ctx.fillText("\u03C3="+sigma.toFixed(1)+"%  E[R]="+expReturn.toFixed(1)+"%",cx+16,cy+9);
+    ctx.fillStyle=C.white;ctx.font="700 12px 'Cormorant Garamond',Georgia,serif";ctx.textAlign="left";ctx.fillText("Mean-Variance Efficient Frontier",pad.l,24);ctx.font="400 10px Outfit,sans-serif";ctx.fillStyle=C.slate;ctx.fillText("Markowitz (1952) \u00B7 Black-Litterman adjusted",pad.l,38);
+  },[step,showFrontier,sigma,expReturn,frontier,totalQ]);
+
+  const s={
+    page:{minHeight:"100vh",background:C.navy,color:C.white,fontFamily:"'Outfit',sans-serif"},
+    container:{maxWidth:"880px",margin:"0 auto",padding:"0 24px"},
+    nav:{background:C.navy,padding:"14px 0",borderBottom:"1px solid "+C.border},
+    navInner:{maxWidth:"880px",margin:"0 auto",padding:"0 24px",display:"flex",justifyContent:"space-between",alignItems:"center"},
+    logoWrap:{display:"flex",alignItems:"center",gap:"12px",textDecoration:"none"},
+    logoText:{fontFamily:"var(--font-display)",fontSize:"1.35rem",fontWeight:600,letterSpacing:"0.06em",color:C.white},
+    goldLine:{height:"1px",background:"linear-gradient(90deg, transparent, rgba(184,151,58,0.25), transparent)"},
+    card:{background:C.navyMid,border:"1px solid "+C.border,borderRadius:"0",padding:"32px"},
+    btn:(active,color=C.gold)=>({background:active?color:"transparent",color:active?C.navy:color,border:"1px solid "+(active?color:C.border),borderRadius:"0",padding:"14px 20px",fontSize:"13px",fontFamily:"'Outfit',sans-serif",cursor:"pointer",width:"100%",textAlign:"left",transition:"all 0.15s",marginBottom:"8px"}),
+    primary:(disabled)=>({background:disabled?"rgba(184,151,58,0.2)":C.gold,color:disabled?C.slate:C.navy,border:"none",borderRadius:"0",padding:"14px 28px",fontSize:"0.78rem",fontWeight:600,letterSpacing:"0.12em",textTransform:"uppercase",fontFamily:"'Outfit',sans-serif",cursor:disabled?"not-allowed":"pointer",transition:"all 0.2s"}),
+  };
+
+  // ─── NAV ──────────────────────────────────────────────────────────
+  const Nav=()=>(
+    React.createElement("div",null,
+      React.createElement("div",{style:s.nav},
+        React.createElement("div",{style:s.navInner},
+          React.createElement("div",{style:s.logoWrap},
+            React.createElement("div",{style:s.logoText},
+              "JASON ",React.createElement("span",{style:{color:C.gold}},"VESTAL")
+            )
+          ),
+          React.createElement("div",{style:{color:C.slate,fontSize:"0.68rem",letterSpacing:"0.14em",textTransform:"uppercase"}},"PORTFOLIO ANALYTICS")
+        )
+      ),
+      React.createElement("div",{style:s.goldLine})
+    )
+  );
+
+  const Footer=()=>(
+    React.createElement("div",null,
+      React.createElement("div",{style:s.goldLine}),
+      React.createElement("div",{style:{padding:"24px 0",textAlign:"center"}},
+        React.createElement("div",{style:{fontFamily:"var(--font-display)",fontSize:"1rem",fontWeight:600,letterSpacing:"0.06em",color:C.white,marginBottom:"4px"}},"JASON ",React.createElement("span",{style:{color:C.gold}},"VESTAL")),
+        React.createElement("p",{style:{color:C.slate,fontSize:"0.72rem",marginBottom:"4px"}},"250 H Street # 524, Blaine, WA 98230"),
+        React.createElement("p",{style:{color:C.slate,fontSize:"0.68rem",lineHeight:1.7,maxWidth:"600px",margin:"8px auto 0"}},
+          "This tool is for educational and illustrative purposes only. It does not constitute investment advice, a recommendation, or an offer to buy or sell any security. Index allocations shown are hypothetical. All investing involves risk, including possible loss of principal."
+        ),
+        React.createElement("p",{style:{color:"rgba(136,153,176,0.5)",fontSize:"0.65rem",marginTop:"8px"}},"\u00A9 "+(new Date().getFullYear())+" Jason Vestal. All rights reserved.")
+      )
+    )
+  );
+
+  // ─── INTRO ────────────────────────────────────────────────────────
+  if(step===0){
+    return React.createElement("div",{style:s.page},
+      React.createElement(Nav),
+      React.createElement("div",{style:{padding:"60px 24px 48px"}},
+        React.createElement("div",{style:{maxWidth:"640px",margin:"0 auto",textAlign:"center"}},
+          React.createElement("div",{style:{color:C.gold,fontSize:"0.68rem",letterSpacing:"0.3em",fontWeight:600,marginBottom:"20px"}},"PROPRIETARY RISK ANALYTICS"),
+          React.createElement("h1",{style:{fontSize:"clamp(1.8rem,4vw,2.6rem)",color:C.white,margin:"0 0 16px",fontWeight:500,fontFamily:"var(--font-display)",lineHeight:1.2}},"Psychometric Risk Assessment & Portfolio Optimization"),
+          React.createElement("div",{style:{width:"48px",height:"1px",background:C.gold,margin:"20px auto"}}),
+          React.createElement("p",{style:{color:C.slateLight,fontSize:"0.95rem",lineHeight:1.8,margin:"0 0 32px",fontWeight:300}},"A validated 25-question instrument measuring three independent risk dimensions \u2014 tolerance, capacity, and required return \u2014 mapped to Markowitz efficient frontier optimization across global index exposures."),
+          React.createElement("div",{style:{display:"flex",justifyContent:"center",gap:"40px",marginBottom:"36px",flexWrap:"wrap"}},
+            [{n:"25",l:"Psychometric Items"},{n:"3",l:"Risk Dimensions"},{n:"16",l:"Index Exposures"},{n:"1M+",l:"Validation Sample"}].map((item,i)=>
+              React.createElement("div",{key:i,style:{textAlign:"center"}},
+                React.createElement("div",{style:{fontSize:"1.6rem",fontWeight:500,color:C.white,fontFamily:"var(--font-display)"}},item.n),
+                React.createElement("div",{style:{fontSize:"0.6rem",color:C.slate,letterSpacing:"0.15em",fontWeight:600,marginTop:"2px"}},item.l)
+              )
+            )
+          ),
+          React.createElement("button",{onClick:()=>setStep(1),style:s.primary(false)},"BEGIN ASSESSMENT"),
+          React.createElement("p",{style:{color:C.slate,fontSize:"0.68rem",marginTop:"24px",lineHeight:1.6}},"Methodology: Roszkowski, Davey & Grable (2005) \u00B7 Markowitz (1952) \u00B7 Black & Litterman (1992)")
+        )
+      ),
+      React.createElement(Footer)
+    );
+  }
+
+  // ─── QUESTIONS ────────────────────────────────────────────────────
+  if(step>=1&&step<=totalQ){
+    const qi=step-1;const q=QUESTIONS[qi];const progress=(step/totalQ)*100;
+    const sectionColors={"Risk Tolerance":C.gold,"Risk Capacity":C.amber,"Risk Required":C.green};
+    const sColor=sectionColors[q.section]||C.gold;
+    return React.createElement("div",{style:s.page},
+      React.createElement(Nav),
+      React.createElement("div",{style:{padding:"36px 24px 48px"}},
+        React.createElement("div",{style:{maxWidth:"640px",margin:"0 auto"}},
+          React.createElement("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:"6px"}},
+            React.createElement("span",{style:{fontSize:"0.62rem",letterSpacing:"0.25em",color:sColor,fontWeight:700}},q.section.toUpperCase()),
+            React.createElement("span",{style:{fontSize:"0.75rem",color:C.slate}},step+" / "+totalQ)
+          ),
+          React.createElement("div",{style:{height:"2px",background:C.border,marginBottom:"36px"}},
+            React.createElement("div",{style:{height:"100%",width:progress+"%",background:sColor,transition:"width 0.4s ease"}})
+          ),
+          React.createElement("h2",{style:{fontSize:"1.2rem",color:C.white,margin:"0 0 24px",fontWeight:500,fontFamily:"var(--font-display)",lineHeight:1.5}},q.q),
+          q.opts.map((opt,oi)=>
+            React.createElement("button",{key:oi,onClick:()=>setAnswers(prev=>({...prev,[qi]:oi})),style:s.btn(answers[qi]===oi,sColor)},
+              React.createElement("span",{style:{opacity:0.4,marginRight:"10px",fontSize:"0.75rem"}},String.fromCharCode(65+oi)+"."),opt
+            )
+          ),
+          React.createElement("div",{style:{display:"flex",gap:"12px",marginTop:"24px"}},
+            step>1&&React.createElement("button",{onClick:()=>setStep(step-1),style:{...s.primary(false),background:"transparent",color:C.slate,border:"1px solid "+C.border}},"\u2190 BACK"),
+            React.createElement("button",{onClick:()=>answers[qi]!==undefined&&setStep(step+1),disabled:answers[qi]===undefined,style:{...s.primary(answers[qi]===undefined),flex:1}},step===totalQ?"VIEW RESULTS":"CONTINUE \u2192")
+          )
+        )
+      ),
+      React.createElement(Footer)
+    );
+  }
+
+  // ─── RESULTS ──────────────────────────────────────────────────────
+  const{tolScore,capScore,reqScore,binding}=scores;
+  const conflictMsg=(()=>{
+    if(tolScore>capScore+15)return"Risk tolerance exceeds financial capacity. Portfolio constrained to capacity level.";
+    if(reqScore>tolScore+15)return"Required return exceeds risk tolerance. Goals adjustment may be warranted.";
+    if(reqScore>capScore+15)return"Required return exceeds financial capacity. Goals adjustment is necessary.";
+    return null;
+  })();
+  const growthPct=weights.reduce((s,w,i)=>ASSET_CLASSES[i].cat==="equity"?s+w:s,0);
+  const bondPct=weights.reduce((s,w,i)=>ASSET_CLASSES[i].cat==="bond"?s+w:s,0);
+  const altPct=weights.reduce((s,w,i)=>ASSET_CLASSES[i].cat==="alt"?s+w:s,0);
+  const sharpe=((expReturn-4.5)/sigma).toFixed(2);
+
+  return React.createElement("div",{style:s.page},
+    React.createElement(Nav),
+    // Title
+    React.createElement("div",{style:{background:C.navyMid,padding:"28px 24px",borderBottom:"1px solid "+C.border}},
+      React.createElement("div",{style:{...s.container,display:"flex",justifyContent:"space-between",alignItems:"baseline",flexWrap:"wrap",gap:"12px"}},
+        React.createElement("div",null,
+          React.createElement("div",{style:{color:C.gold,fontSize:"0.6rem",letterSpacing:"0.25em",fontWeight:600,marginBottom:"6px"}},"ASSESSMENT RESULTS"),
+          React.createElement("h1",{style:{fontSize:"clamp(1.4rem,3vw,1.8rem)",color:C.white,margin:0,fontWeight:400,fontFamily:"var(--font-display)"}},"Optimized Portfolio Allocation")
+        ),
+        React.createElement("div",{style:{textAlign:"right"}},
+          React.createElement("div",{style:{color:C.slate,fontSize:"0.68rem"}},"Risk Profile"),
+          React.createElement("div",{style:{color:C.white,fontSize:"1.1rem",fontWeight:400,fontFamily:"var(--font-display)"}},profileLabel(binding))
+        )
+      )
+    ),
+    React.createElement("div",{style:{padding:"28px 24px 48px"}},
+      React.createElement("div",{style:s.container},
+        // Scores
+        React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"1px",background:C.border,marginBottom:"24px"}},
+          [{l:"RISK TOLERANCE",v:tolScore,sub:"Psychological",c:C.gold},{l:"RISK CAPACITY",v:capScore,sub:"Financial",c:C.amber},{l:"RISK REQUIRED",v:reqScore,sub:"Goal-driven",c:C.green},{l:"BINDING SCORE",v:binding,sub:profileLabel(binding),c:C.gold}].map((item,i)=>
+            React.createElement("div",{key:i,style:{background:C.navyMid,padding:"18px 16px",textAlign:"center"}},
+              React.createElement("div",{style:{fontSize:"0.55rem",letterSpacing:"0.2em",color:C.slate,fontWeight:600,marginBottom:"6px"}},item.l),
+              React.createElement("div",{style:{fontSize:"2rem",fontWeight:400,color:item.c,fontFamily:"var(--font-display)",lineHeight:1}},item.v),
+              React.createElement("div",{style:{height:"2px",background:C.border,margin:"10px auto 6px",width:"60%"}},
+                React.createElement("div",{style:{height:"100%",width:item.v+"%",background:item.c}})
+              ),
+              React.createElement("div",{style:{fontSize:"0.68rem",color:C.slate}},item.sub)
+            )
+          )
+        ),
+        // Conflict
+        conflictMsg&&React.createElement("div",{style:{background:"rgba(184,151,58,0.05)",border:"1px solid rgba(184,151,58,0.2)",padding:"14px 18px",marginBottom:"24px"}},
+          React.createElement("span",{style:{fontSize:"0.55rem",letterSpacing:"0.2em",color:C.amber,fontWeight:700}},"THREE-FACTOR CONFLICT"),
+          React.createElement("p",{style:{margin:"6px 0 0",fontSize:"0.82rem",color:C.slateLight,lineHeight:1.6}},conflictMsg)
+        ),
+        // Stats
+        React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"1px",background:C.border,marginBottom:"24px"}},
+          [{l:"TARGET \u03C3",v:sigma.toFixed(1)+"%"},{l:"EXPECTED RETURN",v:expReturn.toFixed(1)+"%"},{l:"MAX DRAWDOWN",v:maxDraw.toFixed(0)+"%"},{l:"SHARPE RATIO",v:sharpe}].map((item,i)=>
+            React.createElement("div",{key:i,style:{background:C.navy,padding:"16px",textAlign:"center"}},
+              React.createElement("div",{style:{fontSize:"0.5rem",letterSpacing:"0.2em",color:C.gold,fontWeight:600,marginBottom:"6px"}},item.l),
+              React.createElement("div",{style:{fontSize:"1.5rem",fontWeight:400,color:C.white,fontFamily:"var(--font-display)"}},item.v)
+            )
+          )
+        ),
+        // Frontier
+        React.createElement("div",{style:{background:C.navyMid,border:"1px solid "+C.border,padding:"20px",marginBottom:"24px"}},
+          React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:showFrontier?"16px":"0"}},
+            React.createElement("div",null,
+              React.createElement("span",{style:{fontSize:"0.55rem",letterSpacing:"0.2em",color:C.slate,fontWeight:600}},"MARKOWITZ OPTIMIZATION"),
+              React.createElement("h3",{style:{margin:"4px 0 0",fontSize:"1rem",color:C.white,fontWeight:400,fontFamily:"var(--font-display)"}},"Efficient Frontier Positioning")
+            ),
+            React.createElement("button",{onClick:()=>setShowFrontier(!showFrontier),style:{background:"transparent",color:C.gold,border:"1px solid "+C.border,padding:"8px 16px",fontSize:"0.65rem",letterSpacing:"0.15em",fontWeight:600,fontFamily:"'Outfit',sans-serif",cursor:"pointer"}},showFrontier?"HIDE":"SHOW")
+          ),
+          showFrontier&&React.createElement("canvas",{ref:canvasRef,style:{width:"100%",border:"1px solid "+C.border}})
+        ),
+        // Allocation
+        React.createElement("div",{style:{background:C.navyMid,border:"1px solid "+C.border,padding:"20px",marginBottom:"24px"}},
+          React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:"16px",flexWrap:"wrap",gap:"8px"}},
+            React.createElement("div",null,
+              React.createElement("span",{style:{fontSize:"0.55rem",letterSpacing:"0.2em",color:C.slate,fontWeight:600}},"INDEX ALLOCATION"),
+              React.createElement("h3",{style:{margin:"4px 0 0",fontSize:"1rem",color:C.white,fontWeight:400,fontFamily:"var(--font-display)"}},"Optimized Portfolio Construction")
+            ),
+            React.createElement("div",{style:{display:"flex",gap:"16px",fontSize:"0.72rem"}},
+              React.createElement("span",{style:{color:C.gold}},"\u25A0 Equity "+growthPct+"%"),
+              React.createElement("span",{style:{color:C.goldLight}},"\u25A0 Fixed Income "+bondPct+"%"),
+              React.createElement("span",{style:{color:C.green}},"\u25A0 Alternatives "+altPct+"%")
+            )
+          ),
+          React.createElement("div",{style:{height:"10px",display:"flex",overflow:"hidden",marginBottom:"20px",border:"1px solid "+C.border}},
+            React.createElement("div",{style:{width:growthPct+"%",background:C.gold}}),
+            React.createElement("div",{style:{width:bondPct+"%",background:C.goldLight}}),
+            React.createElement("div",{style:{width:altPct+"%",background:C.green}})
+          ),
+          React.createElement("table",{style:{width:"100%",borderCollapse:"collapse"}},
+            React.createElement("thead",null,
+              React.createElement("tr",{style:{borderBottom:"1px solid "+C.border}},
+                ["Asset Class","Index / Benchmark","Weight"].map(h=>
+                  React.createElement("th",{key:h,style:{padding:"8px 12px",textAlign:"left",fontSize:"0.6rem",letterSpacing:"0.15em",color:C.slate,fontWeight:600}},h)
+                )
+              )
+            ),
+            React.createElement("tbody",null,
+              ASSET_CLASSES.map((ac,i)=>weights[i]>0&&
+                React.createElement("tr",{key:i,style:{borderBottom:"1px solid rgba(184,151,58,0.06)"}},
+                  React.createElement("td",{style:{padding:"10px 12px",fontSize:"0.82rem",fontWeight:500,color:ac.cat==="equity"?C.gold:ac.cat==="bond"?C.goldLight:C.green}},ac.name),
+                  React.createElement("td",{style:{padding:"10px 12px",fontSize:"0.78rem",color:C.slate}},ac.index),
+                  React.createElement("td",{style:{padding:"10px 12px",fontSize:"0.88rem",fontWeight:600,color:C.white}},weights[i]+"%")
+                )
+              )
+            )
+          )
+        ),
+        // CTA
+        React.createElement("div",{style:{background:C.navyMid,border:"1px solid "+C.borderGold,padding:"28px",textAlign:"center",marginBottom:"16px"}},
+          React.createElement("div",{style:{fontFamily:"var(--font-display)",fontSize:"1rem",fontWeight:600,letterSpacing:"0.06em",color:C.white,marginBottom:"4px"}},"JASON ",React.createElement("span",{style:{color:C.gold}},"VESTAL")),
+          React.createElement("p",{style:{color:C.slateLight,fontSize:"0.82rem",margin:"12px auto 18px",lineHeight:1.7,maxWidth:"520px",fontWeight:300}},"This allocation is optimized on the Markowitz efficient frontier at your measured risk tolerance \u2014 not a menu selection, not a guess."),
+          React.createElement("button",{onClick:()=>{setStep(0);setAnswers({});setShowFrontier(false);},style:s.primary(false)},"RETAKE ASSESSMENT")
+        )
+      )
+    ),
+    React.createElement(Footer)
+  );
+}
+
+ReactDOM.render(React.createElement(App),document.getElementById("root"));
+</script>
+</body>
+</html>
